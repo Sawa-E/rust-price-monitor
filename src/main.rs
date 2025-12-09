@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
 use db::init_db;
-use commands::{cmd_add, cmd_check, cmd_list};
+use commands::{cmd_add, cmd_check, cmd_list, cmd_export};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -22,6 +22,9 @@ fn main() -> Result<()> {
         }
         Commands::List => {
             cmd_list(&conn)?;
+        }
+        Commands::Export { filename } => {  // ← 追加
+            cmd_export(&conn, &filename)?;
         }
     }
     

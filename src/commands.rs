@@ -1,5 +1,7 @@
 use anyhow::Result;
 use rusqlite::Connection;
+use csv::Writer;
+use std::fs::File;
 use crate::scraper::fetch_amazon_price;
 use crate::db::{save_product, save_price_history};
 
@@ -101,5 +103,49 @@ pub fn cmd_check(conn: &Connection) -> Result<()> {
     }
     
     println!("\n✅ チェック完了");
+    Ok(())
+}
+
+pub fn cmd_export(conn: &Connection, filename: &str) -> Result<()> {
+    // データベースから全商品取得
+    let mut stmt = conn.prepare(
+        "SELECT id, name, current_price, url, created_at FROM products ORDER BY id"
+    )?;
+    
+    let products = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, i32>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, String>(4)?,
+        ))
+    })?;
+    
+    // CSVファイルを作成
+    let file = File::create(filename)?;
+    let mut wtr = Writer::from_writer(file);
+    
+    // ヘッダー行を書き込み
+    wtr.write_record(&["ID", "商品名", "価格", "URL", "登録日時"])?;
+    
+    // データ行を書き込み
+    let mut count = 0;
+    for product in products {
+        let (id, name, price, url, created_at) = product?;
+        wtr.write_record(&[
+            id.to_string(),
+            name,
+            price.to_string(),
+            url,
+            created_at,
+        ])?;
+        count += 1;
+    }
+    
+    wtr.flush()?;
+    
+    println!("✅ CSVエクスポート完了: {} ({}件)", filename, count);
+    
     Ok(())
 }

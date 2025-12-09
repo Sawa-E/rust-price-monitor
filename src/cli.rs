@@ -19,4 +19,9 @@ pub enum Commands {
     Check,
     /// 登録済み商品の一覧を表示
     List,
+    /// 商品一覧をCSVにエクスポート
+    Export {
+        /// 出力ファイル名
+        filename: String,
+    },
 }
