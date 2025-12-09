@@ -1,0 +1,12 @@
+[package]
+name = "rust-price-monitor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+scraper = "0.19"
+anyhow = "1.0"
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
