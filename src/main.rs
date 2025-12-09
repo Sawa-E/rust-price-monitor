@@ -1,32 +1,46 @@
 mod cli;
+mod commands;
 mod db;
 mod scraper;
-mod commands;
+mod web;
 
-use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
-use db::init_db;
-use commands::{cmd_add, cmd_check, cmd_list, cmd_export};
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let conn = init_db()?;
-    
+
+    // 🔧 Tokioランタイムを作成
+    let rt = tokio::runtime::Runtime::new()?;
+
     match cli.command {
-        Commands::Add { url } => {
-            cmd_add(&conn, &url)?;
+        Some(Commands::Add { url }) => {
+            let conn = db::init_db()?;
+            rt.block_on(async {
+                commands::cmd_add(&conn, &url).await
+            })?;
         }
-        Commands::Check => {
-            cmd_check(&conn)?;
+        Some(Commands::List) => {
+            let conn = db::init_db()?;
+            commands::cmd_list(&conn)?;
         }
-        Commands::List => {
-            cmd_list(&conn)?;
+        Some(Commands::Check) => {
+            let conn = db::init_db()?;
+            rt.block_on(async {
+                commands::cmd_check(&conn).await
+            })?;
         }
-        Commands::Export { filename } => {  // ← 追加
-            cmd_export(&conn, &filename)?;
+        Some(Commands::Export { filename }) => {
+            let conn = db::init_db()?;
+            commands::cmd_export(&conn, &filename)?;
+        }
+        None => {
+            println!("🌐 Starting Web UI...");
+            rt.block_on(async {
+                web::run_server().await
+            })?;
         }
     }
-    
+
     Ok(())
 }

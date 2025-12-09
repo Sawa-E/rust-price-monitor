@@ -7,14 +7,15 @@ pub struct Product {
     pub url: String,
 }
 
-pub fn fetch_amazon_price(url: &str) -> Result<Product> {
-    let client = reqwest::blocking::Client::builder()
+// 🔧 async fnに変更、reqwest::blockingを削除
+pub async fn fetch_amazon_price(url: &str) -> Result<Product> {
+    let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36")
         .build()?;
 
-    // get HTML
-    let resp = client.get(url).send()?;
-    let body = resp.text()?;
+    // 🔧 .awaitを追加
+    let resp = client.get(url).send().await?;
+    let body = resp.text().await?;
 
     // parse HTML
     let document = Html::parse_document(&body);

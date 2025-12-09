@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 #[command(about = "Amazon商品の価格追跡ツール", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -24,4 +24,5 @@ pub enum Commands {
         /// 出力ファイル名
         filename: String,
     },
+    // サブコマンドなし => Web UIを起動
 }
