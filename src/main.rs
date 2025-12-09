@@ -3,14 +3,21 @@ mod commands;
 mod db;
 mod scraper;
 mod web;
+mod scheduler;
 
 use clap::Parser;
 use cli::{Cli, Commands};
+use tracing_subscriber;
 
 fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    // 🆕 ログ設定を初期化
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_level(true)
+        .init();
 
-    // 🔧 Tokioランタイムを作成
+    let cli = Cli::parse();
     let rt = tokio::runtime::Runtime::new()?;
 
     match cli.command {
@@ -35,7 +42,7 @@ fn main() -> anyhow::Result<()> {
             commands::cmd_export(&conn, &filename)?;
         }
         None => {
-            println!("🌐 Starting Web UI...");
+            println!("🌐 Starting Web UI with auto price check...");
             rt.block_on(async {
                 web::run_server().await
             })?;

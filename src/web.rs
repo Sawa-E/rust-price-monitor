@@ -9,9 +9,11 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tower_http::services::ServeDir;
+use crate::scheduler;
 
 use crate::db::{init_db, save_price_history, save_product};
 use crate::scraper::fetch_amazon_price;
+use tracing::info;
 
 // 共有DB接続（スレッドセーフ）
 pub type SharedDb = Arc<Mutex<Connection>>;
@@ -198,7 +200,13 @@ async fn delete_product(
 // サーバー起動関数
 pub async fn run_server() -> anyhow::Result<()> {
     let db = Arc::new(Mutex::new(init_db()?));
-    let app = create_router(db);
+    let app = create_router(db.clone());
+
+    tokio::spawn(async move {
+        if let Err(e) = scheduler::start_scheduler(db).await {
+            tracing::error!("❌ スケジューラー起動エラー: {}", e);
+        }
+    });
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await?;
