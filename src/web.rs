@@ -41,6 +41,8 @@ pub fn create_router(db: SharedDb) -> Router {
     Router::new()
         .route("/api/products", get(list_products).post(add_product))
         .route("/api/products/check", post(check_prices))
+        .route("/api/products/:id/history", get(get_price_history))
+        .route("/api/products/:id", axum::routing::delete(delete_product))  // 🆕 追加
         .with_state(db)
         .nest_service("/", ServeDir::new("static"))
 }
@@ -142,6 +144,55 @@ async fn check_prices(State(db): State<SharedDb>) -> Result<Json<Vec<Product>>, 
     let updated_products: Vec<Product> = results.into_iter().filter_map(|x| x).collect();
 
     Ok(Json(updated_products))
+}
+
+async fn get_price_history(
+    State(db): State<SharedDb>,
+    axum::extract::Path(product_id): axum::extract::Path<i64>,
+) -> Result<Json<Vec<PriceHistory>>, StatusCode> {
+    let conn = db.lock().unwrap();
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT price, checked_at FROM price_history 
+             WHERE product_id = ? 
+             ORDER BY checked_at ASC"
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let history: Vec<PriceHistory> = stmt
+        .query_map([product_id], |row| {
+            Ok(PriceHistory {
+                price: row.get(0)?,
+                checked_at: row.get(1)?,
+            })
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(Json(history))
+}
+
+async fn delete_product(
+    State(db): State<SharedDb>,
+    axum::extract::Path(product_id): axum::extract::Path<i64>,
+) -> Result<StatusCode, StatusCode> {
+    let conn = db.lock().unwrap();
+
+    // 価格履歴を削除
+    conn.execute("DELETE FROM price_history WHERE product_id = ?", [product_id])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // 商品を削除
+    let deleted = conn.execute("DELETE FROM products WHERE id = ?", [product_id])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if deleted == 0 {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 // サーバー起動関数

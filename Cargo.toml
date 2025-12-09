@@ -2,6 +2,7 @@
 name = "rust-price-monitor"
 version = "0.1.0"
 edition = "2024"
+default-run = "rust-price-monitor"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["json"] }
@@ -18,3 +19,8 @@ tower-http = { version = "0.5", features = ["fs", "cors"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 futures = "0.3"
+rand = "0.8"
+
+[[bin]]
+name = "seed_db"
+path = "src/bin/seed_db.rs"

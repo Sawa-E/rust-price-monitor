@@ -3,213 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Amazon商品の価格を監視するダッシュボード"
+    />
     <title>Price Monitor Dashboard</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 2rem;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        overflow: hidden;
-      }
-      header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        text-align: center;
-      }
-      header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-      }
-      header p {
-        opacity: 0.9;
-      }
-      .controls {
-        padding: 2rem;
-        display: flex;
-        gap: 1rem;
-        border-bottom: 1px solid #e0e0e0;
-      }
-      input {
-        flex: 1;
-        padding: 1rem;
-        border: 2px solid #ddd;
-        border-radius: 10px;
-        font-size: 1rem;
-      }
-      button {
-        padding: 1rem 2rem;
-        border: none;
-        border-radius: 10px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        font-weight: bold;
-      }
-      .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-      }
-      .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-      }
-      .btn-secondary {
-        background: #f0f0f0;
-        color: #333;
-      }
-      .btn-secondary:hover {
-        background: #e0e0e0;
-      }
-      .products {
-        padding: 2rem;
-      }
-      .product-card {
-        background: #f9f9f9;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: transform 0.3s;
-      }
-      .product-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-      }
-      .product-info h3 {
-        font-size: 1.2rem;
-        color: #333;
-        margin-bottom: 0.5rem;
-      }
-      .product-info .price {
-        font-size: 1.5rem;
-        color: #667eea;
-        font-weight: bold;
-      }
-      .product-info .url {
-        font-size: 0.85rem;
-        color: #888;
-        word-break: break-all;
-      }
-      .loading {
-        text-align: center;
-        padding: 3rem;
-        color: #999;
-        font-size: 1.2rem;
-      }
-    </style>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/favicon.png" />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/style.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div class="container">
+      <!-- ヘッダー -->
       <header>
+        <button
+          class="theme-toggle"
+          onclick="toggleTheme()"
+          aria-label="テーマ切り替え"
+        >
+          🌙
+        </button>
         <h1>📊 Price Monitor</h1>
         <p>Amazon商品の価格を監視するダッシュボード</p>
       </header>
+
+      <!-- 統計エリア -->
+      <div class="stats" id="stats">
+        <div class="stat-card">
+          <div class="number" id="totalProducts">0</div>
+          <div class="label">登録商品</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="avgPrice">¥0</div>
+          <div class="label">平均価格</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="lowestPrice">¥0</div>
+          <div class="label">最安値</div>
+        </div>
+      </div>
+
+      <!-- コントロールエリア -->
       <div class="controls">
-        <input type="text" id="urlInput" placeholder="Amazon商品URLを入力..." />
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="Amazon商品URLを入力..."
+          aria-label="商品URL"
+        />
         <button class="btn-primary" onclick="addProduct()">➕ 追加</button>
         <button class="btn-secondary" onclick="checkPrices()">
           🔄 価格チェック
         </button>
       </div>
+
+      <!-- 商品リスト -->
       <div class="products" id="productList">
-        <div class="loading">読み込み中...</div>
+        <div class="loading">
+          <div class="spinner"></div>
+          読み込み中...
+        </div>
       </div>
     </div>
 
-    <script>
-      // 初回読み込み
-      loadProducts();
+    <!-- トースト通知 -->
+    <div class="toast" id="toast" role="alert"></div>
 
-      async function loadProducts() {
-        try {
-          const res = await fetch("/api/products");
-          const products = await res.json();
-          displayProducts(products);
-        } catch (err) {
-          document.getElementById("productList").innerHTML =
-            '<div class="loading">エラーが発生しました</div>';
-        }
-      }
-
-      async function addProduct() {
-        const url = document.getElementById("urlInput").value.trim();
-        if (!url) {
-          alert("URLを入力してください");
-          return;
-        }
-
-        document.getElementById("productList").innerHTML =
-          '<div class="loading">追加中...</div>';
-
-        try {
-          const res = await fetch("/api/products", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
-          });
-
-          if (res.ok) {
-            document.getElementById("urlInput").value = "";
-            loadProducts();
-          } else {
-            alert("商品の追加に失敗しました");
-          }
-        } catch (err) {
-          alert("エラーが発生しました");
-        }
-      }
-
-      async function checkPrices() {
-        document.getElementById("productList").innerHTML =
-          '<div class="loading">価格チェック中...</div>';
-
-        try {
-          const res = await fetch("/api/products/check", { method: "POST" });
-          const products = await res.json();
-          displayProducts(products);
-        } catch (err) {
-          alert("エラーが発生しました");
-        }
-      }
-
-      function displayProducts(products) {
-        const list = document.getElementById("productList");
-        if (products.length === 0) {
-          list.innerHTML =
-            '<div class="loading">商品が登録されていません</div>';
-          return;
-        }
-
-        list.innerHTML = products
-          .map(
-            (p) => `
-                <div class="product-card">
-                    <div class="product-info">
-                        <h3>${p.name}</h3>
-                        <div class="price">¥${p.current_price.toLocaleString()}</div>
-                        <div class="url">${p.url}</div>
-                    </div>
-                </div>
-            `
-          )
-          .join("");
-      }
-    </script>
+    <!-- JavaScript -->
+    <script src="/js/app.js"></script>
   </body>
 </html>
