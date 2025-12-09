@@ -196,15 +196,11 @@ async function toggleGraph(productId) {
       return;
     }
 
-    const labels = history.map((h) => {
-      const date = new Date(h.checked_at);
-      return `${
-        date.getMonth() + 1
-      }/${date.getDate()} ${date.getHours()}:${String(
-        date.getMinutes()
-      ).padStart(2, "0")}`;
-    });
-    const prices = history.map((h) => h.price);
+    // 🔧 日時データを正確なタイムスタンプに変換
+    const data = history.map((h) => ({
+      x: new Date(h.checked_at), // Date オブジェクトに変換
+      y: h.price,
+    }));
 
     const ctx = document.getElementById(`canvas-${productId}`).getContext("2d");
 
@@ -218,11 +214,10 @@ async function toggleGraph(productId) {
     chartInstances[productId] = new Chart(ctx, {
       type: "line",
       data: {
-        labels: labels,
         datasets: [
           {
             label: "価格（円）",
-            data: prices,
+            data: data, // 🔧 {x, y} 形式のデータ
             borderColor: "#667eea",
             backgroundColor: "rgba(102, 126, 234, 0.1)",
             borderWidth: 3,
@@ -267,6 +262,15 @@ async function toggleGraph(productId) {
             padding: 12,
             displayColors: false,
             callbacks: {
+              title: function (context) {
+                // 🔧 タイトルに日時を表示
+                const date = new Date(context[0].parsed.x);
+                return `${
+                  date.getMonth() + 1
+                }/${date.getDate()} ${date.getHours()}:${String(
+                  date.getMinutes()
+                ).padStart(2, "0")}`;
+              },
               label: function (context) {
                 return "¥" + context.parsed.y.toLocaleString();
               },
@@ -274,13 +278,22 @@ async function toggleGraph(productId) {
           },
         },
         scales: {
-          y: {
-            beginAtZero: false,
+          x: {
+            type: "time", // 🔧 時間スケールを使用
+            time: {
+              unit: "hour", // 🔧 時間単位で表示
+              displayFormats: {
+                hour: "M/d HH:mm", // 🔧 表示形式
+                day: "M/d",
+              },
+              tooltipFormat: "M/d HH:mm", // 🔧 ツールチップの形式
+            },
             ticks: {
               color: isDark ? "#a0aec0" : "#718096",
-              callback: function (value) {
-                return "¥" + value.toLocaleString();
-              },
+              maxRotation: 45, // 🔧 ラベルの回転角度
+              minRotation: 0,
+              autoSkip: true, // 🔧 自動でスキップ
+              maxTicksLimit: 8, // 🔧 最大表示数
             },
             grid: {
               color: isDark
@@ -288,9 +301,13 @@ async function toggleGraph(productId) {
                 : "rgba(226, 232, 240, 0.8)",
             },
           },
-          x: {
+          y: {
+            beginAtZero: false,
             ticks: {
               color: isDark ? "#a0aec0" : "#718096",
+              callback: function (value) {
+                return "¥" + value.toLocaleString();
+              },
             },
             grid: {
               color: isDark
